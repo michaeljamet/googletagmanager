@@ -27,80 +27,97 @@ shopHooks.viewItem = function (data) {
   dataLayer.push({ ecommerce: null });
   dataLayer.push({
     event: "view_item",
-    ecommerce: {
-      currency: "EUR",
-      value: p.price,
-      items: [{
-        item_id: p.sku,
-        item_name: p.name
-        // ... complétez : item_brand, item_category, price, quantity
-      }]
-    }
-  });
-};
-
------------------------------------------------------------------------- */
-
-
 /* ---------- À VOUS : écrivez vos crochets ci-dessous ---------- */
 
+/* 1. Le dictionnaire : vocabulaire de la boutique → vocabulaire GA4 */
+function versItem(x) {
+  return {
+    item_id: x.sku,
+    item_name: x.name,
+    item_brand: x.brand,
+    item_category: x.category,
+    item_variant: x.size,       // vide quand on regarde un produit sans taille choisie
+    price: x.price,
+    quantity: x.quantity || 1   // 1 par défaut
+  };
+}
+
+/* 2. Vue d'un produit */
 shopHooks.viewItem = function (data) {
-  var p = data.product;
   dataLayer.push({ ecommerce: null });
   dataLayer.push({
     event: "view_item",
     ecommerce: {
       currency: "EUR",
-      value: p.price,
-      items: [{
-        item_id: p.sku,
-        item_name: p.name,
-        item_brand: p.brand,
-        item_category: p.category,
-        price: p.price,
-        quantity: 1
-      }]
+      value: data.product.price,
+      items: [versItem(data.product)]
     }
   });
 };
 
+/* 3. Ajout au panier */
 shopHooks.addToCart = function (data) {
-  var item = {
-    item_id: data.product.sku,
-    item_name: data.product.name,
-    item_brand: data.product.brand,
-    item_category: data.product.category,
-    item_variant: data.size,
-    price: data.unitPrice,
-    quantity: data.quantity
-  };
+  var item = versItem(data.product);
+  item.item_variant = data.size;      // la taille choisie
+  item.price = data.unitPrice;        // le prix, flocage compris
+  item.quantity = data.quantity;      // la quantité ajoutée
   dataLayer.push({ ecommerce: null });
   dataLayer.push({
     event: "add_to_cart",
-    ecommerce: { currency: data.currency, value: data.value, items: [item] }
-  });
-};
-
-shopHooks.addToWishlist = function (data) {
-  var p = data.product;
-  dataLayer.push({ ecommerce: null });
-  dataLayer.push({
-    event: "add_to_wishlist",           // ← seule ligne différente
     ecommerce: {
       currency: "EUR",
-      value: p.price,
-      items: [{
-        item_id: p.sku,
-        item_name: p.name,
-        item_brand: p.brand,
-        item_category: p.category,
-        price: p.price,
-        quantity: 1
-      }]
+      value: data.value,
+      items: [item]
     }
   });
 };
 
+/* 4. Début de commande */
+shopHooks.beginCheckout = function (data) {
+  dataLayer.push({ ecommerce: null });
+  dataLayer.push({
+    event: "begin_checkout",
+    ecommerce: {
+      currency: "EUR",
+      value: data.totals.subtotal - data.totals.discount,
+      coupon: data.totals.coupon || undefined,
+      items: data.lines.map(versItem)
+    }
+  });
+};
+
+/* 6. Choix de la livraison */
+shopHooks.addShippingInfo = function (data) {
+  dataLayer.push({ ecommerce: null });
+  dataLayer.push({
+    event: "add_shipping_info",
+    ecommerce: {
+      currency: "EUR",
+      value: data.totals.subtotal - data.totals.discount,
+      coupon: data.totals.coupon || undefined,
+      shipping_tier: data.shippingTier,
+      items: data.lines.map(versItem)
+    }
+  });
+};
+
+/* 7. Choix du paiement */
+shopHooks.addPaymentInfo = function (data) {
+  dataLayer.push({ ecommerce: null });
+  dataLayer.push({
+    event: "add_payment_info",
+    ecommerce: {
+      currency: "EUR",
+      value: data.totals.subtotal - data.totals.discount,
+      coupon: data.totals.coupon || undefined,
+      payment_type: data.paymentType,
+      items: data.lines.map(versItem)
+    }
+  });
+};
+
+
+/* 5. Achat */
 shopHooks.purchase = function (data) {
   if (!data.firstView) return; // page rechargée : on n'envoie pas l'achat une 2e fois
   var o = data.order;
@@ -114,17 +131,7 @@ shopHooks.purchase = function (data) {
       tax: o.tax,
       shipping: o.shipping,
       coupon: o.coupon || undefined,
-      items: o.lines.map(function (l) {
-        return {
-          item_id: l.sku,
-          item_name: l.name,
-          item_brand: l.brand,
-          item_category: l.category,
-          item_variant: l.size,
-          price: l.price,
-          quantity: l.quantity
-        };
-      })
+      items: o.lines.map(versItem)
     }
   });
 };

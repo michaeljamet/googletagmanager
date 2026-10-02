@@ -144,3 +144,7 @@ shopHooks.couponApplied = function (data) {
     coupon_valid: data.valid ? "oui" : "non"
   });
 };
+
+shopHooks.removeFromCart = function (data) { console.log("removeFromCart", data); };
+shopHooks.addToWishlist  = function (data) { console.log("addToWishlist", data); };
+shopHooks.sizeGuideOpen  = function (data) { console.log("sizeGuideOpen", data); };

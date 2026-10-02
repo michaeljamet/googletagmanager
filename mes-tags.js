@@ -148,3 +148,42 @@ shopHooks.couponApplied = function (data) {
 shopHooks.removeFromCart = function (data) { console.log("removeFromCart", data); };
 shopHooks.addToWishlist  = function (data) { console.log("addToWishlist", data); };
 shopHooks.sizeGuideOpen  = function (data) { console.log("sizeGuideOpen", data); };
+
+/* Regrets : article retiré du panier */
+shopHooks.removeFromCart = function (data) {
+  var item = versItem(data.line);
+  item.quantity = data.quantity;        
+  dataLayer.push({ ecommerce: null });
+  dataLayer.push({
+    event: "remove_from_cart",
+    ecommerce: {
+      currency: "EUR",
+      value: data.value,
+      items: [item]
+    }
+  });
+};
+
+/* Favoris : clic sur le cœur */
+shopHooks.addToWishlist = function (data) {
+  var item = versItem(data.product);
+  item.item_variant = data.size || undefined;  
+  dataLayer.push({ ecommerce: null });
+  dataLayer.push({
+    event: "add_to_wishlist",
+    ecommerce: {
+      currency: "EUR",
+      value: data.product.price,
+      items: [item]
+    }
+  });
+};
+
+/* Tailles : ouverture du guide */
+shopHooks.sizeGuideOpen = function (data) {
+  dataLayer.push({
+    event: "size_guide_open",
+    product_id: data.product.sku,
+    product_name: data.product.name
+  });
+};
